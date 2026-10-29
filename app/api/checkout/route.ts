@@ -1,24 +1,26 @@
-import { NextResponse } from "next/server";
-import { findResumeProduct, getStoreCheckoutUrl, assertStoreCurrency } from "@/lib/woocommerce";
+import { NextRequest, NextResponse } from "next/server";
+import { createResumeOrder } from "@/lib/woocommerce";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST() {
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "https://resume.howlark.com").replace(/\/$/, "");
+
+export async function POST(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  if (origin && origin !== new URL(APP_URL).origin) {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+  }
+
   try {
-    await assertStoreCurrency();
-    const product = await findResumeProduct();
-    if (!product || product.status !== "publish" || Number(product.regular_price) !== 2 || !product.virtual) {
-      return NextResponse.json(
-        { error: "The ResumeLite $2 product is not configured yet. Please contact the site owner." },
-        { status: 503 }
-      );
-    }
-    return NextResponse.json({ checkoutUrl: getStoreCheckoutUrl(product.id) });
+    const checkout = await createResumeOrder();
+    return NextResponse.json(checkout, {
+      headers: { "Cache-Control": "no-store, max-age=0" },
+    });
   } catch (error) {
-    console.error("ResumeLite checkout setup error:", error);
+    console.error("ResumeLite checkout initialization error:", error);
     return NextResponse.json(
-      { error: "Checkout is temporarily unavailable. Please try again later." },
+      { error: "Checkout is not ready. The site owner must configure WooCommerce REST API access and confirm the store uses USD." },
       { status: 503 }
     );
   }
