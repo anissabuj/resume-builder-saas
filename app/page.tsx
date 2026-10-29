@@ -53,35 +53,53 @@ export default function Home() {
           setResume({ ...initialResume, ...parsed });
         }
       }
-      const savedOrder = localStorage.getItem(ORDER_STORAGE_KEY);
-      if (savedOrder) {
-        const parsed = JSON.parse(savedOrder) as OrderReference;
-        if (Number.isSafeInteger(parsed.orderId) && parsed.orderId > 0 && typeof parsed.orderKey === "string") {
-          setOrder(parsed);
-          setMessage("Checking your payment with WooCommerce…");
-          fetch("/api/verify-order", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(parsed),
-            cache: "no-store"
-          }).then(async (response) => {
-            const result = await response.json();
-            if (!active) return;
-            if (response.ok && result.paid === true) {
-              setIsPaid(true);
-              setMessage("Payment verified. Your PDF is ready to download.");
-            } else {
-              setIsPaid(false);
-              setMessage(new URLSearchParams(window.location.search).get("payment") === "return"
-                ? "Payment is not confirmed yet. If you just paid, wait a few seconds and refresh this page."
-                : "Complete checkout to unlock your PDF download.");
-            }
-          }).catch(() => {
-            if (active) setMessage("We could not verify payment right now. Please refresh this page.");
-          });
+      const query = new URLSearchParams(window.location.search);
+      const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const fragmentOrderId = Number(fragment.get("order_id"));
+      const fragmentOrderKey = fragment.get("order_key");
+      let pendingOrder: OrderReference | null = null;
+
+      if (Number.isSafeInteger(fragmentOrderId) && fragmentOrderId > 0 && fragmentOrderKey && fragmentOrderKey.length <= 200) {
+        pendingOrder = { orderId: fragmentOrderId, orderKey: fragmentOrderKey };
+        localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(pendingOrder));
+      } else {
+        const savedOrder = localStorage.getItem(ORDER_STORAGE_KEY);
+        if (savedOrder) {
+          const parsed = JSON.parse(savedOrder) as OrderReference;
+          if (Number.isSafeInteger(parsed.orderId) && parsed.orderId > 0 && typeof parsed.orderKey === "string") {
+            pendingOrder = parsed;
+          }
         }
       }
-      if (new URLSearchParams(window.location.search).get("payment") === "return") {
+
+      if (pendingOrder) {
+        setOrder(pendingOrder);
+        setMessage("Checking your payment with WooCommerce…");
+        fetch("/api/verify-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(pendingOrder),
+          cache: "no-store"
+        }).then(async (response) => {
+          const result = await response.json();
+          if (!active) return;
+          if (response.ok && result.paid === true) {
+            setIsPaid(true);
+            setMessage("Payment verified. Your PDF is ready to download.");
+          } else {
+            setIsPaid(false);
+            setMessage(query.get("payment") === "return" || fragmentOrderId > 0
+              ? "Payment is not confirmed yet. If you just paid, wait a few seconds and refresh this page."
+              : "Complete checkout to unlock your PDF download.");
+          }
+        }).catch(() => {
+          if (active) setMessage("We could not verify payment right now. Please refresh this page.");
+        });
+      } else if (query.get("payment") === "return") {
+        setMessage("We couldn't find the order reference. Please contact support before paying again.");
+      }
+
+      if (query.get("payment") === "return" || fragmentOrderId > 0) {
         window.history.replaceState({}, "", window.location.pathname);
       }
     } catch {
@@ -105,12 +123,11 @@ export default function Home() {
       localStorage.setItem(RESUME_STORAGE_KEY, JSON.stringify(resume));
       const response = await fetch("/api/checkout", { method: "POST", cache: "no-store" });
       const result = await response.json();
-      if (!response.ok || !result.checkoutUrl || !result.orderId || !result.orderKey) {
+      if (!response.ok || !result.checkoutUrl) {
         throw new Error(result.error || "Checkout could not be started.");
       }
-      const reference: OrderReference = { orderId: Number(result.orderId), orderKey: String(result.orderKey) };
-      localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(reference));
-      setOrder(reference);
+      localStorage.removeItem(ORDER_STORAGE_KEY);
+      setOrder(null);
       setIsPaid(false);
       window.location.assign(String(result.checkoutUrl));
     } catch (error) {
