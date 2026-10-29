@@ -21,6 +21,7 @@ type WooProduct = {
 type WooOrderLine = {
   product_id: number;
   sku?: string;
+  quantity: number;
   subtotal: string;
   total: string;
 };
@@ -39,13 +40,9 @@ type WooOrder = {
 function credentials() {
   const key = process.env.WOOCOMMERCE_CONSUMER_KEY;
   const secret = process.env.WOOCOMMERCE_CONSUMER_SECRET;
-  if (!key || !secret) {
-    throw new Error("WooCommerce API credentials are not configured.");
-  }
+  if (!key || !secret) throw new Error("WooCommerce API credentials are not configured.");
   const parsed = new URL(STORE_URL);
-  if (parsed.protocol !== "https:") {
-    throw new Error("WooCommerce URL must use HTTPS.");
-  }
+  if (parsed.protocol !== "https:") throw new Error("WooCommerce URL must use HTTPS.");
   return { key, secret };
 }
 
@@ -93,20 +90,15 @@ export async function createOrUpdateResumeProduct(): Promise<WooProduct> {
     virtual: true,
     downloadable: false,
     sold_individually: true,
+    tax_status: "none",
     catalog_visibility: "hidden",
     description: "One-time payment to download a PDF created with ResumeLite.",
   };
   if (existing) {
-    if (existing.status === "publish" && Number(existing.regular_price) === 2 && existing.virtual) return existing;
-    return wooFetch<WooProduct>(`products/${existing.id}`, {
-      method: "PUT",
-      body: JSON.stringify(payload),
-    });
+    if (existing.status === "publish" && Number(existing.regular_price) === 2 && existing.virtual && existing.tax_status === "none") return existing;
+    return wooFetch<WooProduct>(`products/${existing.id}`, { method: "PUT", body: JSON.stringify(payload) });
   }
-  return wooFetch<WooProduct>("products", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  return wooFetch<WooProduct>("products", { method: "POST", body: JSON.stringify(payload) });
 }
 
 export async function createResumeOrder() {
@@ -129,21 +121,20 @@ export async function createResumeOrder() {
 export async function verifyPaidResumeOrder(orderId: number, suppliedOrderKey: string) {
   await assertStoreCurrency();
   const product = await findResumeProduct();
-  if (!product || product.status !== "publish" || Number(product.regular_price) !== 2 || !product.virtual) {
+  if (!product || product.status !== "publish" || Number(product.regular_price) !== 2 || !product.virtual || product.tax_status !== "none") {
     throw new Error("ResumeLite WooCommerce product is missing or incorrectly configured.");
   }
 
   const order = await wooFetch<WooOrder>(`orders/${orderId}`);
-  if (order.order_key !== suppliedOrderKey) {
-    return { paid: false, status: "invalid_order_key" as const };
-  }
+  if (order.order_key !== suppliedOrderKey) return { paid: false, status: "invalid_order_key" as const };
 
-  const includesProduct = order.line_items.some((item) =>
-    item.product_id === product.id &&
-    Number(item.subtotal) === 2 &&
-    Number(item.total) === 2
-  );
-  if (order.currency.toUpperCase() !== EXPECTED_CURRENCY || Number(order.total) !== 2 || !includesProduct) {
+  const includesOnlyResumeProduct =
+    order.line_items.length === 1 &&
+    order.line_items[0].product_id === product.id &&
+    order.line_items[0].quantity === 1 &&
+    Number(order.line_items[0].subtotal) === 2 &&
+    Number(order.line_items[0].total) === 2;
+  if (order.currency.toUpperCase() !== EXPECTED_CURRENCY || Number(order.total) !== 2 || !includesOnlyResumeProduct) {
     return { paid: false, status: "order_mismatch" as const };
   }
 
