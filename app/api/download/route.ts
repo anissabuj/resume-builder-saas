@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
-import { verifyPaidResumeOrder } from "@/lib/woocommerce";
+import { verifyPaidResumeOrder } from "../../../lib/woocommerce";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
