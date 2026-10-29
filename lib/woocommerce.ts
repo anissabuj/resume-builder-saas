@@ -15,6 +15,7 @@ type WooProduct = {
   regular_price: string;
   price: string;
   virtual: boolean;
+  tax_status: string;
   catalog_visibility: string;
 };
 
