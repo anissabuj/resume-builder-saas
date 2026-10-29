@@ -29,9 +29,23 @@ The WooCommerce store currency must be USD. The integration refuses checkout/ver
 
 ## Required WooCommerce return redirect
 
-The order is created by the app before checkout. To return the customer to ResumeLite after the payment gateway reports success, add the following PHP snippet to the WordPress site at `https://howlark.com` using a trusted snippets plugin (for example, Code Snippets). Run it on the front end:
+The app sends the customer to the normal WooCommerce checkout page so all enabled gateways and billing fields are available. To save the ResumeLite return URL to the order and return the customer to the app after the gateway reports success, add the following PHP snippet to the WordPress site at `https://howlark.com` using a trusted snippets plugin (for example, Code Snippets). Run it on the front end:
 
 ```php
+add_action('woocommerce_checkout_create_order', function ($order, $data) {
+    if (!function_exists('WC') || !WC()->cart) {
+        return;
+    }
+
+    foreach (WC()->cart->get_cart() as $cart_item) {
+        $product = $cart_item['data'] ?? null;
+        if ($product instanceof WC_Product && $product->get_sku() === 'resumelite-pdf-download') {
+            $order->update_meta_data('resumelite_return_url', 'https://resume.howlark.com/?payment=return');
+            break;
+        }
+    }
+}, 10, 2);
+
 add_filter('woocommerce_get_return_url', function ($return_url, $order) {
     if (!($order instanceof WC_Order)) {
         return $return_url;
@@ -50,7 +64,10 @@ add_filter('woocommerce_get_return_url', function ($return_url, $order) {
         return $return_url;
     }
 
-    return esc_url_raw($target);
+    // Keep the order key in the URL fragment: browsers do not send fragments to web servers.
+    return 'https://resume.howlark.com/?payment=return#order_id='
+        . absint($order->get_id())
+        . '&order_key=' . rawurlencode($order->get_order_key());
 }, 10, 2);
 ```
 
@@ -59,9 +76,9 @@ This redirect is limited to the ResumeLite return URL saved on that order and ch
 ## Payment flow
 
 1. The customer edits their resume and selects **Pay $2 & Download PDF**.
-2. The server creates/finds the hidden virtual product and creates a pending WooCommerce order.
-3. The customer completes checkout on Howlark using an enabled payment gateway.
-4. WooCommerce redirects back to ResumeLite after successful payment.
+2. The server creates/finds the hidden virtual product and sends the customer to normal WooCommerce checkout.
+3. The customer enters checkout details and pays through any enabled payment gateway.
+4. The WordPress snippet saves the ResumeLite return marker to the order and redirects back after payment, placing the order key in the URL fragment (not in the HTTP request).
 5. ResumeLite checks the order key, currency, exact $2 total, product ID, quantity, paid status, and payment date against WooCommerce's authenticated REST API.
 6. The download endpoint repeats the server-side check and only then generates and returns the PDF.
 
