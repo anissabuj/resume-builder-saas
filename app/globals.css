@@ -5,6 +5,7 @@
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: "DM Sans", Arial, sans-serif; }
 button, input, textarea { font: inherit; }
 button { cursor: pointer; }
+button:disabled { opacity: .65; cursor: wait; }
 .page { max-width: 1440px; margin: 0 auto; padding: 26px 34px 18px; }
 .topbar { display:flex; justify-content:space-between; align-items:center; gap:20px; }
 .brand { font: 800 25px "Manrope", sans-serif; letter-spacing:-1px; }
@@ -18,6 +19,7 @@ button { cursor: pointer; }
 .eyebrow { color:var(--blue); font-size:11px; font-weight:800; letter-spacing:1.6px; }
 .intro h1 { font:800 clamp(27px, 3vw, 40px) "Manrope", sans-serif; letter-spacing:-1.4px; margin:9px 0 10px; }
 .intro p { color:var(--muted); line-height:1.65; margin:0; max-width:650px; }
+.paymentMessage { margin:0 0 20px; border:1px solid #dbe4ff; background:#f4f7ff; color:#29449b; border-radius:10px; padding:12px 15px; font-size:13px; line-height:1.5; }
 .workspace { display:grid; grid-template-columns:minmax(320px, .9fr) minmax(420px, 1.1fr); gap:24px; align-items:start; }
 .panel { background:white; border:1px solid var(--line); border-radius:16px; padding:22px; box-shadow:0 8px 28px #23365a08; }
 .sectionHeading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:20px; }
@@ -30,6 +32,8 @@ input, textarea { width:100%; border:1px solid #dfe5ee; border-radius:8px; paddi
 input:focus, textarea:focus { border-color:#7e9bff; box-shadow:0 0 0 3px #315eea12; }
 textarea { resize:vertical; line-height:1.5; }
 .hint { color:#8a93a3; font-weight:400; }
+.checkoutActions { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-top:22px; padding-top:18px; border-top:1px solid var(--line); }
+.secureNote { color:var(--muted); font-size:11px; line-height:1.5; }
 .previewWrap { min-width:0; }
 .previewLabel { font-size:11px; font-weight:800; letter-spacing:1.4px; color:#59667b; margin:2px 0 12px; display:flex; align-items:center; gap:8px; }
 .liveDot { width:7px; height:7px; border-radius:50%; background:#20b87a; box-shadow:0 0 0 4px #20b87a1c; }
@@ -51,10 +55,9 @@ footer { text-align:center; color:#8a93a3; font-size:11px; padding:30px 0 8px; }
 @media print {
   body { background:white; }
   .page { max-width:none; padding:0; }
-  .topbar, .intro, .editor, .previewLabel, .previewNote, footer { display:none !important; }
+  .topbar, .intro, .editor, .previewLabel, .previewNote, footer, .paymentMessage { display:none !important; }
   .workspace { display:block; }
   .previewWrap { display:block; }
   .resume { border:0; box-shadow:none; border-radius:0; padding:18mm 17mm; min-height:0; }
   @page { size:A4; margin:0; }
 }
-
