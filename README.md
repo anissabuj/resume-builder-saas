@@ -46,6 +46,21 @@ add_action('woocommerce_checkout_create_order', function ($order, $data) {
     }
 }, 10, 2);
 
+add_action('woocommerce_store_api_checkout_order_processed', function ($order) {
+    if (!($order instanceof WC_Order)) {
+        return;
+    }
+
+    foreach ($order->get_items() as $item) {
+        $product = $item->get_product();
+        if ($product instanceof WC_Product && $product->get_sku() === 'resumelite-pdf-download') {
+            $order->update_meta_data('resumelite_return_url', 'https://resume.howlark.com/?payment=return');
+            $order->save();
+            break;
+        }
+    }
+}, 10, 1);
+
 add_filter('woocommerce_get_return_url', function ($return_url, $order) {
     if (!($order instanceof WC_Order)) {
         return $return_url;
