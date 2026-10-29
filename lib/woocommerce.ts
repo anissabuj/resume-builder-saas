@@ -102,21 +102,9 @@ export async function createOrUpdateResumeProduct(): Promise<WooProduct> {
   return wooFetch<WooProduct>("products", { method: "POST", body: JSON.stringify(payload) });
 }
 
-export async function createResumeOrder() {
+export async function getResumeCheckoutUrl() {
   const product = await createOrUpdateResumeProduct();
-  const order = await wooFetch<WooOrder>("orders", {
-    method: "POST",
-    body: JSON.stringify({
-      status: "pending",
-      set_paid: false,
-      customer_note: "ResumeLite one-time PDF download.",
-      line_items: [{ product_id: product.id, quantity: 1 }],
-      meta_data: [{ key: "resumelite_return_url", value: `${APP_URL}/?payment=return` }],
-    }),
-  });
-  const checkoutUrl = order.payment_url ||
-    `${STORE_URL}/checkout/order-pay/${order.id}/?pay_for_order=true&key=${encodeURIComponent(order.order_key)}`;
-  return { orderId: order.id, orderKey: order.order_key, checkoutUrl };
+  return `${STORE_URL}/checkout/?add-to-cart=${product.id}&quantity=1`;
 }
 
 export async function verifyPaidResumeOrder(orderId: number, suppliedOrderKey: string) {
