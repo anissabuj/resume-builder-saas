@@ -16,6 +16,7 @@ type WooProduct = {
   price: string;
   virtual: boolean;
   tax_status: string;
+  sold_individually: boolean;
   catalog_visibility: string;
 };
 
@@ -96,7 +97,7 @@ export async function createOrUpdateResumeProduct(): Promise<WooProduct> {
     description: "One-time payment to download a PDF created with ResumeLite.",
   };
   if (existing) {
-    if (existing.status === "publish" && Number(existing.regular_price) === 2 && existing.virtual && existing.tax_status === "none") return existing;
+    if (existing.status === "publish" && Number(existing.regular_price) === 2 && existing.virtual && existing.tax_status === "none" && existing.sold_individually && existing.catalog_visibility === "hidden") return existing;
     return wooFetch<WooProduct>(`products/${existing.id}`, { method: "PUT", body: JSON.stringify(payload) });
   }
   return wooFetch<WooProduct>("products", { method: "POST", body: JSON.stringify(payload) });
