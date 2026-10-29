@@ -2,6 +2,7 @@ import "server-only";
 
 const STORE_URL = (process.env.WOOCOMMERCE_URL || "https://howlark.com").replace(/\/$/, "");
 const EXPECTED_CURRENCY = (process.env.RESUMELITE_EXPECTED_CURRENCY || "USD").toUpperCase();
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "https://resume.howlark.com").replace(/\/$/, "");
 export const RESUMELITE_SKU = "resumelite-pdf-download";
 export const RESUMELITE_PRICE = "2.00";
 
@@ -31,6 +32,7 @@ type WooOrder = {
   total: string;
   order_key: string;
   date_paid: string | null;
+  payment_url?: string;
   line_items: WooOrderLine[];
 };
 
@@ -90,10 +92,12 @@ export async function createOrUpdateResumeProduct(): Promise<WooProduct> {
     regular_price: RESUMELITE_PRICE,
     virtual: true,
     downloadable: false,
+    sold_individually: true,
     catalog_visibility: "hidden",
     description: "One-time payment to download a PDF created with ResumeLite.",
   };
   if (existing) {
+    if (existing.status === "publish" && Number(existing.regular_price) === 2 && existing.virtual) return existing;
     return wooFetch<WooProduct>(`products/${existing.id}`, {
       method: "PUT",
       body: JSON.stringify(payload),
@@ -103,6 +107,23 @@ export async function createOrUpdateResumeProduct(): Promise<WooProduct> {
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export async function createResumeOrder() {
+  const product = await createOrUpdateResumeProduct();
+  const order = await wooFetch<WooOrder>("orders", {
+    method: "POST",
+    body: JSON.stringify({
+      status: "pending",
+      set_paid: false,
+      customer_note: "ResumeLite one-time PDF download.",
+      line_items: [{ product_id: product.id, quantity: 1 }],
+      meta_data: [{ key: "resumelite_return_url", value: `${APP_URL}/?payment=return` }],
+    }),
+  });
+  const checkoutUrl = order.payment_url ||
+    `${STORE_URL}/checkout/order-pay/${order.id}/?pay_for_order=true&key=${encodeURIComponent(order.order_key)}`;
+  return { orderId: order.id, orderKey: order.order_key, checkoutUrl };
 }
 
 export async function verifyPaidResumeOrder(orderId: number, suppliedOrderKey: string) {
@@ -122,14 +143,10 @@ export async function verifyPaidResumeOrder(orderId: number, suppliedOrderKey: s
     Number(item.subtotal) === 2 &&
     Number(item.total) === 2
   );
-  if (order.currency.toUpperCase() !== EXPECTED_CURRENCY || !includesProduct) {
+  if (order.currency.toUpperCase() !== EXPECTED_CURRENCY || Number(order.total) !== 2 || !includesProduct) {
     return { paid: false, status: "order_mismatch" as const };
   }
 
   const paid = (order.status === "processing" || order.status === "completed") && Boolean(order.date_paid);
   return { paid, status: order.status };
-}
-
-export function getStoreCheckoutUrl(productId: number) {
-  return `${STORE_URL}/checkout/?add-to-cart=${productId}&quantity=1`;
 }
