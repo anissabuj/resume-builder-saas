@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createResumeOrder } from "../../../lib/woocommerce";
+import { getResumeCheckoutUrl } from "../../../lib/woocommerce";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
