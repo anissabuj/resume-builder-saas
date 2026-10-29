@@ -13,8 +13,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const checkout = await createResumeOrder();
-    return NextResponse.json(checkout, {
+    const checkoutUrl = await getResumeCheckoutUrl();
+    return NextResponse.json({ checkoutUrl }, {
       headers: { "Cache-Control": "no-store, max-age=0" },
     });
   } catch (error) {
