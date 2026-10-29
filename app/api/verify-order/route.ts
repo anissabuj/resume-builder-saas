@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyPaidResumeOrder } from "@/lib/woocommerce";
+import { verifyPaidResumeOrder } from "../../../lib/woocommerce";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
