@@ -9,11 +9,13 @@
   },
   "dependencies": {
     "next": "14.2.31",
+    "pdfkit": "^0.16.0",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },
   "devDependencies": {
     "@types/node": "20.17.30",
+    "@types/pdfkit": "^0.13.8",
     "@types/react": "18.3.20",
     "@types/react-dom": "18.3.5",
     "typescript": "5.8.3"
